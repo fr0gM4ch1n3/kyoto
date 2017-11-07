@@ -1,0 +1,139 @@
+<!doctype html>
+<html>
+  <head>
+      <meta charset="utf-8"/>
+      <style>
+          body {
+            font-family: monospace;
+            font-size: 16px;
+            font-style: normal;
+            font-variant: normal;
+            font-weight: 800;
+            line-height: 20px;
+          }
+      </style>
+  </head>
+  <body>
+    <ul>
+        <li><input id="arm" value="arm" type="button" /><input id="disarm" value="disarm" type="button" /></li>
+        <li>CALIBRATION:&nbsp;<span bind="cs">-</span>&nbsp;&nbsp;<input id="calibrate" value="calibrate" type="button" /></li>
+        <br/>
+        <li>TEMP_OUT:&nbsp;<span bind="t">-</span></li>
+        <br/>
+        <li>ACCEL_XOUT:&nbsp;<span bind="a.x">-</span></li>
+        <li>ACCEL_YOUT:&nbsp;<span bind="a.y">-</span></li>
+        <li>ACCEL_ZOUT:&nbsp;<span bind="a.z">-</span></li>
+        <br/>
+        <li>GYRO_XOUT:&nbsp;<span bind="g.x">-</span></li>
+        <li>GYRO_YOUT:&nbsp;<span bind="g.y">-</span></li>
+        <li>GYRO_ZOUT:&nbsp;<span bind="g.z">-</span></li>
+        <br/>
+        <li>POSX:&nbsp;<span bind="p.x">-</span></li>
+        <li>POSY:&nbsp;<span bind="p.y">-</span></li>
+        <li>POSZ:&nbsp;<span bind="p.z">-</span></li>
+        <br/>
+        <li>DIRX:&nbsp;<span bind="d.x">-</span></li>
+        <li>DIRY:&nbsp;<span bind="d.y">-</span></li>
+        <li>DIRX1:&nbsp;<span bind="d.x1">-</span></li>
+        <li>DIRY1:&nbsp;<span bind="d.y1">-</span></li>
+        <li>DIRZ1:&nbsp;<span bind="d.z1">-</span></li>
+        <li>DIRX2:&nbsp;<span bind="d.x2">-</span></li>
+        <li>DIRY2:&nbsp;<span bind="d.y2">-</span></li>
+        <br/>
+        <li>AMBC:&nbsp;<span bind="tof.a">-</span></li>
+        <li>SIGC:&nbsp;<span bind="tof.s">-</span></li>
+        <li>DIST:&nbsp;<span bind="tof.d">-</span></li>
+        <li>WORK:&nbsp;<span bind="tof.r">-</span></li>
+        <br/>
+        <li>ESC4:&nbsp;<span bind="pwm.4">-</span></li>
+        <li>ESC5:&nbsp;<span bind="pwm.5">-</span></li>
+        <li>ESC6:&nbsp;<span bind="pwm.6">-</span></li>
+        <li>ESC7:&nbsp;<span bind="pwm.7">-</span></li>
+    </ul>
+    <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
+    <script>
+        var socket = io();
+
+        var ARR = '&nbsp;&nbsp;&rarr;&nbsp;&nbsp;';
+
+        var fG = function (x, p) {
+            // return ((Math.floor(x * Math.pow(10, p)) / Math.pow(10, p)) > 0 ? ' ': '-') + Math.abs(x).toFixed(p || 2);
+            return (x > 0 ? ' ': '-') + Math.abs(x).toFixed(isNaN(p) || p < 0 ? 2 : p);
+        };
+
+        var fS = function (k, e, p) {
+            return fG(stats('min', k, e), p) + ' / ' + fG(stats('avg', k, e, 4), p) + ' / ' + fG(stats('max', k, e), p);
+        };
+
+        var statData = {};
+        var stats = function(f, k, e, l) {
+            if (!statData[f]) {statData[f] = {};}
+            switch (f) {
+                case "avg":
+                    if (!statData[f][k]) {statData[f][k] = [];}
+                    statData[f][k].push(e);
+                    statData[f][k].splice(0, Math.max(0, statData[f][k].length - l));
+                    return statData[f][k].reduce(function (a, b) {
+                        return a + b;
+                    }) / statData[f][k].length;
+                    break;
+                case "min":
+                    return (statData[f][k] = Math.min(statData[f][k] || e, e));
+                    break;
+                case "max":
+                    return (statData[f][k] = Math.max(statData[f][k] || e, e));
+                    break;
+            }
+        }
+
+        socket.on('x', function(x){
+            document.querySelector('[bind="cs"]').innerHTML = Math.floor(x.cs * 100) + '%' ;
+
+            document.querySelector('[bind="t"]').innerHTML =fG((x.t / 333.87) + 21.0, 2) + ARR + fS('t', (x.t / 333.87) + 21.0);
+
+            document.querySelector('[bind="a.x"]').innerHTML = fG(x.a.x, 4) + ' (' + fG(x.a.raw.x, 4) + ')' + ARR + fS('a.x', x.a.x);
+            document.querySelector('[bind="a.y"]').innerHTML = fG(x.a.y, 4) + ' (' + fG(x.a.raw.y, 4) + ')' + ARR + fS('a.y', x.a.y);
+            document.querySelector('[bind="a.z"]').innerHTML = fG(x.a.z, 4) + ' (' + fG(x.a.raw.z, 4) + ')' + ARR + fS('a.z', x.a.z);
+
+            document.querySelector('[bind="g.x"]').innerHTML = fG(x.g.x, 4) + ' (' + fG(x.g.raw.x, 4) + ')' + ARR + fS('g.x', x.g.x);
+            document.querySelector('[bind="g.y"]').innerHTML = fG(x.g.y, 4) + ' (' + fG(x.g.raw.x, 4) + ')' + ARR + fS('g.y', x.g.y);
+            document.querySelector('[bind="g.z"]').innerHTML = fG(x.g.z, 4) + ' (' + fG(x.g.raw.x, 4) + ')' + ARR + fS('g.z', x.g.z);
+            
+            document.querySelector('[bind="p.x"]').innerHTML = fG(x.p.x) + ARR + fS('p.x', x.p.x);
+            document.querySelector('[bind="p.y"]').innerHTML = fG(x.p.y) + ARR + fS('p.y', x.p.y);
+            document.querySelector('[bind="p.z"]').innerHTML = fG(x.p.z) + ARR + fS('p.z', x.p.z);
+
+            document.querySelector('[bind="d.x"]').innerHTML = fG(x.d.x) + ARR + fS('d.x', x.d.x);
+            document.querySelector('[bind="d.y"]').innerHTML = fG(x.d.y) + ARR + fS('d.y', x.d.y);
+            document.querySelector('[bind="d.x1"]').innerHTML = fG(x.d.x1) + ARR + fS('d.x1', x.d.x1);
+            document.querySelector('[bind="d.y1"]').innerHTML = fG(x.d.y1) + ARR + fS('d.y1', x.d.y1);
+            document.querySelector('[bind="d.z1"]').innerHTML = fG(x.d.z1) + ARR + fS('d.z1', x.d.z1);
+            document.querySelector('[bind="d.x2"]').innerHTML = fG(x.d.x2) + ARR + fS('d.x2', x.d.x2);
+            document.querySelector('[bind="d.y2"]').innerHTML = fG(x.d.y2) + ARR + fS('d.y2', x.d.y2);
+            
+            document.querySelector('[bind="tof.a"]').innerHTML = fG(x.tof.a, 0) + ARR + fS('tof.a', x.tof.a, 0);
+            document.querySelector('[bind="tof.s"]').innerHTML = fG(x.tof.s, 0) + ARR + fS('tof.s', x.tof.s, 0);
+            document.querySelector('[bind="tof.d"]').innerHTML = fG(x.tof.d, 0) + ARR + fS('tof.d', x.tof.d, 0);
+            document.querySelector('[bind="tof.r"]').innerHTML = (x.tof.r === 11) + '(' + x.tof.r + ')';
+
+            document.querySelector('[bind="pwm.4"]').innerHTML = fG((x.pwm || {})[4], 0) + ARR + fS('pwm.0', (x.pwm || {})[4], 0);
+            document.querySelector('[bind="pwm.5"]').innerHTML = fG((x.pwm || {})[5], 0) + ARR + fS('pwm.5', (x.pwm || {})[5], 0);
+            document.querySelector('[bind="pwm.6"]').innerHTML = fG((x.pwm || {})[6], 0) + ARR + fS('pwm.6', (x.pwm || {})[6], 0);
+            document.querySelector('[bind="pwm.7"]').innerHTML = fG((x.pwm || {})[7], 0) + ARR + fS('pwm.7', (x.pwm || {})[7], 0);
+        });
+
+        document.getElementById("calibrate").onclick = function calibrate() {
+            socket.emit('calibrate');
+        };
+
+
+        document.getElementById("arm").onclick = function arm() {
+            socket.emit('droneState', 1);
+        };
+
+        document.getElementById("disarm").onclick = function disarm() {
+            socket.emit('droneState', 0);
+        };
+    </script>
+  </body>
+</html>
